@@ -8,13 +8,17 @@ from agent.graph import build_graph
 
 
 def chat(graph, user_input: str) -> str:
-    result = graph.invoke({"messages": [HumanMessage(content=user_input)]})
+    result = graph.invoke(
+        {"messages": [HumanMessage(content=user_input)]},
+        config={"recursion_limit": 50},
+    )
     return result["messages"][-1].content
 
 
 def main():
     print("PKM Agent 시작 (종료: 'quit')")
-    graph = build_graph(model="gpt-4o-mini")
+    # graph = build_graph(model="gpt-4o-mini")
+    graph = build_graph(model="llama3.2")
 
     while True:
         user_input = input("\n나: ").strip()
