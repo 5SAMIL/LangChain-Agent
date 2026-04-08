@@ -12,7 +12,8 @@ def chat(graph, user_input: str) -> str:
         {"messages": [HumanMessage(content=user_input)]},
         config={"recursion_limit": 50},
     )
-    return result["messages"][-1].content
+    content = result["messages"][-1].content
+    return content.replace("STOP", "").strip()
 
 
 def main():
