@@ -1,6 +1,15 @@
 langchain==0.3.28
-langgraph==0.6.11
-langchain-ollama==0.3.10
+langchain-core==0.3.83
 langchain-community==0.3.31
+langchain-text-splitters==0.3.11
+langchain-chroma==0.2.6
+langchain-ollama==0.3.10
+langchain-openai==0.3.35
+langgraph==0.6.11
+langgraph-prebuilt==0.6.5
+langgraph-checkpoint==2.1.2
+langgraph-sdk==0.2.9
 chromadb==1.5.6
+ollama==0.6.1
+openai==2.30.0
 python-dotenv==1.2.1

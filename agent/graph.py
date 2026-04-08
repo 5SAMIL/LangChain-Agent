@@ -3,10 +3,7 @@ from langchain_ollama import ChatOllama
 # from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
-from tools.note_tool import save_note, read_note, list_notes
-from tools.retriever_tool import add_to_knowledge, search_knowledge
-
-TOOLS = [save_note, read_note, list_notes, add_to_knowledge, search_knowledge]
+from tools import load_all_tools
 
 SYSTEM_PROMPT = """You are a personal knowledge management assistant. Respond in Korean.
 
@@ -32,7 +29,7 @@ def build_graph(model: str = "llama3.2"):
     # llm = ChatOpenAI(model=model, temperature=0)  # OpenAI 사용 시
     graph = create_react_agent(
         model=llm,
-        tools=TOOLS,
+        tools=load_all_tools(),
         prompt=SYSTEM_PROMPT,
     )
     return graph
