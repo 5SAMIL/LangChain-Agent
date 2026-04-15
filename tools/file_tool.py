@@ -289,6 +289,34 @@ def scan_files(directory: str, sort_by: str = "name") -> str:
     return f"파일 {len(found)}개 발견 ({sort_label}):\n" + "\n".join(found)
 
 
+@tool
+def find_file(keyword: str, extension: str = "") -> str:
+    """파일명을 정확히 모를 때 키워드로 파일을 검색한다.
+    keyword: 파일명에 포함된 단어 (예: '오픽', 'opic', 'CartoonGAN')
+    extension: 확장자 필터 (예: 'pdf', 'pptx') — 생략 시 전체 검색"""
+    keyword_lower = keyword.lower().strip().strip("'\"")
+    ext_filter = extension.lower().strip().strip(".") if extension else ""
+
+    matches = []
+    for search_dir in SEARCH_DIRS:
+        if not os.path.isdir(search_dir):
+            continue
+        for root, _, files in os.walk(search_dir):
+            for fname in files:
+                fname_lower = fname.lower()
+                if keyword_lower not in fname_lower:
+                    continue
+                if ext_filter and not fname_lower.endswith(f".{ext_filter}"):
+                    continue
+                full_path = os.path.join(root, fname)
+                size_kb = os.path.getsize(full_path) // 1024
+                matches.append(f"{full_path} ({size_kb}KB)")
+
+    if not matches:
+        return f"'{keyword}' 키워드로 파일을 찾을 수 없습니다."
+    return f"검색 결과 {len(matches)}개:\n" + "\n".join(matches)
+
+
 def _resolve_dest(destination_dir: str) -> tuple:
     """목적지 경로 결정. 이미 존재하면 그대로 사용, 없으면 생성. (경로, 신규생성여부) 반환"""
     dest = destination_dir.strip() if destination_dir.strip() else NOTES_DIR

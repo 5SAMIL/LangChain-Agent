@@ -45,8 +45,9 @@ When the user asks to scan a folder:
 
 When the user asks to read a file (with or without a page number):
 1. Extract the page number ONLY from the user's current message, NOT from previous tool results or chat history
-2. Call read_file_full with the file_path and that exact page number (default page=1 if not specified)
-3. Return the result and stop
+2. If the file path is uncertain or the file is not found, call find_file with a keyword from the filename FIRST
+3. Call read_file_full with the exact file_path and that exact page number (default page=1 if not specified)
+4. Return the result and stop
 
 When the user asks to find connections or related knowledge:
 1. Call find_connections with the topic
@@ -60,18 +61,20 @@ When the user asks to search or read:
 1. Call the appropriate tool once
 2. Reply with the result and stop
 
-CRITICAL RULES:
-- When a tool returns a result, return it VERBATIM. Do NOT add any prefix like "내용입니다:", "결과입니다:" or any intro sentence.
-- Do NOT summarize, rewrite, translate, or add extra content.
-- Do NOT add example questions, tips, or explanations after tool results.
+CRITICAL RULES — MUST FOLLOW WITHOUT EXCEPTION:
+- When a tool returns a result, output it EXACTLY as-is. The first character of your response must be the first character of the tool output.
+- NEVER add any prefix, intro, or outro sentences such as "파일 내용은 다음과 같습니다:", "결과입니다:", "내용이에요:", "아래는", "다음은" or anything similar.
+- NEVER add any suffix such as "이상입니다", "도움이 되셨으면 좋겠습니다", "더 궁금한 점이 있으면 말씀해 주세요" or anything similar.
+- NEVER summarize, paraphrase, translate, or reformat tool output.
+- NEVER add tips, examples, explanations, or extra context after a tool result.
+- NEVER call the same tool twice.
 - For A-role analysis tools, the final answer must begin exactly with the tool output (e.g., "A 요약 결과", "A 키워드 결과").
-- Do NOT call the same tool twice. Do NOT loop.
-- After completing the task, always give a final answer in Korean."""
+- After completing the task, respond in Korean only if a short confirmation is needed (e.g., save/move operations). Otherwise output tool result directly."""
 
 
-def build_graph(model: str = "qwen2.5:14b"):
-    llm = ChatOllama(model=model, temperature=0)
-    # llm = ChatOpenAI(model=model, temperature=0)  # OpenAI 사용 시
+def build_graph(model: str = "gpt-4o-mini"):
+    # llm = ChatOllama(model=model, temperature=0)  # Ollama 사용 시
+    llm = ChatOpenAI(model=model, temperature=0)
     graph = create_react_agent(
         model=llm,
         tools=load_all_tools(),
