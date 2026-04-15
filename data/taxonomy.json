@@ -1,0 +1,104 @@
+{
+  "version": "1.0",
+  "default_category": "inbox",
+  "categories": [
+    {
+      "name": "project",
+      "subcategories": ["planning", "meeting", "report", "task"],
+      "keywords": ["프로젝트", "일정", "미팅", "회의", "task", "roadmap", "report", "기획", "요구사항"],
+      "default_folder": "data/sorted/project"
+    },
+    {
+      "name": "study",
+      "subcategories": ["lecture", "note", "research", "tutorial"],
+      "keywords": ["공부", "학습", "정리", "요약", "튜토리얼", "강의", "실습", "알고리즘", "langchain", "python"],
+      "default_folder": "data/sorted/study"
+    },
+    {
+      "name": "finance",
+      "subcategories": ["invoice", "receipt", "budget", "tax"],
+      "keywords": ["결제", "영수증", "세금", "예산", "invoice", "budget", "tax", "매출", "정산"],
+      "default_folder": "data/sorted/finance"
+    },
+    {
+      "name": "legal",
+      "subcategories": ["contract", "policy", "compliance"],
+      "keywords": ["계약", "약관", "법", "규정", "정책", "compliance", "nda", "계약서"],
+      "default_folder": "data/sorted/legal"
+    },
+    {
+      "name": "personal",
+      "subcategories": ["journal", "memo", "idea", "life"],
+      "keywords": ["개인", "일상", "메모", "아이디어", "기록", "회고", "계획"],
+      "default_folder": "data/sorted/personal"
+    },
+    {
+      "name": "reference",
+      "subcategories": ["manual", "spec", "template", "faq"],
+      "keywords": ["가이드", "매뉴얼", "스펙", "템플릿", "faq", "reference", "문서", "정의"],
+      "default_folder": "data/sorted/reference"
+    },
+    {
+      "name": "media",
+      "subcategories": ["image", "screenshot", "design", "asset"],
+      "keywords": ["이미지", "사진", "디자인", "스크린샷", "asset", "banner", "시안"],
+      "default_folder": "data/sorted/media"
+    },
+    {
+      "name": "inbox",
+      "subcategories": ["uncategorized"],
+      "keywords": [],
+      "default_folder": "data/sorted/inbox"
+    }
+  ],
+  "tag_rules": {
+    "urgent": ["긴급", "마감", "오늘", "asap", "urgent"],
+    "meeting": ["회의", "미팅", "meeting", "agenda", "minutes"],
+    "todo": ["할 일", "todo", "to-do", "task", "action item"],
+    "ai": ["ai", "llm", "langchain", "rag", "embedding"],
+    "finance": ["결제", "영수증", "세금", "invoice", "budget", "정산"],
+    "learning": ["학습", "공부", "정리", "요약", "강의", "튜토리얼"],
+    "legal": ["계약", "약관", "규정", "정책", "compliance"],
+    "personal": ["일상", "개인", "회고", "아이디어", "메모"]
+  },
+  "stopwords": [
+    "그리고",
+    "하지만",
+    "또한",
+    "에서",
+    "으로",
+    "하는",
+    "하기",
+    "대한",
+    "이번",
+    "다음",
+    "해당",
+    "관련",
+    "통해",
+    "위해",
+    "및",
+    "등",
+    "또는",
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "from",
+    "have",
+    "will",
+    "in",
+    "to",
+    "of",
+    "on",
+    "at",
+    "by",
+    "as",
+    "an",
+    "a",
+    "or",
+    "is",
+    "be"
+  ]
+}
