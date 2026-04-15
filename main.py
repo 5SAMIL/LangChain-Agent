@@ -11,15 +11,15 @@ load_dotenv()
 from agent.graph import build_graph
 
 FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-
-# 각 단계별 목표 진행률 (%)
-STEP_PROGRESS = {
-    "생각 중":       (0,  40),
-    "Tool 호출":     (40, 65),
-    "결과 처리 중":  (65, 85),
-    "응답 생성 중":  (85, 98),
-}
 BAR_WIDTH = 30
+
+# 각 단계 실제 발생 시 즉시 반영되는 진행률
+STEP_PCT = {
+    "생각 중":      5,
+    "Tool 호출":   40,
+    "결과 수신":   65,
+    "응답 생성 중": 85,
+}
 
 
 def _render_bar(pct: float) -> str:
@@ -29,41 +29,39 @@ def _render_bar(pct: float) -> str:
 
 
 def _spinner(stop_event: threading.Event, status: dict):
-    """경과 시간 + 진행률 바 + 현재 작업 상태 표시"""
+    """실제 이벤트 기반 진행률 + 경과 시간 표시"""
     start = time.time()
     current_pct = 0.0
 
     for frame in itertools.cycle(FRAMES):
         if stop_event.is_set():
-            # 완료 시 100% 표시
             elapsed = time.time() - start
             line = f"\r✓ {_render_bar(100.0)} | 완료 ({elapsed:.1f}s)"
-            sys.stdout.write(line.ljust(80))
+            sys.stdout.write(line.ljust(110))
             sys.stdout.flush()
             break
 
         elapsed = time.time() - start
         step = status.get("step", "생각 중")
-
-        # 현재 단계의 목표 진행률 범위
-        low, high = STEP_PROGRESS.get(step, (0, 98))
-
-        # 목표치를 향해 서서히 증가 (최대 high까지)
-        if current_pct < high:
-            # 목표까지 남은 거리의 5%씩 증가 (점점 느려지는 효과)
-            current_pct += (high - current_pct) * 0.05
-        current_pct = max(current_pct, float(low))
-
         detail = status.get("detail", "")
-        bar = _render_bar(current_pct)
+        tokens = status.get("tokens", 0)
+
+        # 실제 이벤트 발생 시 즉시 해당 % 로 점프
+        target = STEP_PCT.get(step.split(":")[0].strip(), current_pct)
+        if target > current_pct:
+            current_pct = target
+
+        # 응답 생성 중에는 토큰 수 표시
+        if step == "응답 생성 중" and tokens > 0:
+            detail = f"({tokens} tokens)"
+
         info = f"{step} {detail}".strip()
-        line = f"\r{frame} {bar} | {info} ({elapsed:.1f}s)"
-        sys.stdout.write(line.ljust(100))
+        line = f"\r{frame} {_render_bar(current_pct)} | {info} ({elapsed:.1f}s)"
+        sys.stdout.write(line.ljust(110))
         sys.stdout.flush()
         time.sleep(0.1)
 
-    # 스피너 줄 완전히 지우고 새 줄로 이동
-    sys.stdout.write("\r" + " " * 100 + "\r")
+    sys.stdout.write("\r" + " " * 110 + "\r")
     sys.stdout.write("\n")
     sys.stdout.flush()
 
@@ -100,45 +98,54 @@ def chat(graph, user_input: str) -> str:
 
     def run():
         try:
+            from langchain_core.messages import AIMessageChunk
+
             last_tool_name = None
             last_tool_result = None
+            response_tokens = []
 
-            for chunk in graph.stream(
+            for chunk, metadata in graph.stream(
                 {"messages": [HumanMessage(content=user_input)]},
                 config={"recursion_limit": 50},
-                stream_mode="values",
+                stream_mode="messages",
             ):
-                messages = chunk.get("messages", [])
-                if not messages:
-                    continue
-                last = messages[-1]
+                # Tool 호출 청크
+                if isinstance(chunk, AIMessageChunk) and chunk.tool_call_chunks:
+                    for tc in chunk.tool_call_chunks:
+                        if tc.get("name"):
+                            last_tool_name = tc["name"]
+                            status["step"] = f"Tool 호출: {tc['name']}"
+                            status["detail"] = ""
+                            status["tokens"] = 0
+                            response_tokens.clear()
 
-                if isinstance(last, AIMessage) and last.tool_calls:
-                    for tc in last.tool_calls:
-                        args_str = _summarize_args(tc.get("args", {}))
-                        last_tool_name = tc["name"]
-                        status["step"] = f"Tool 호출: {tc['name']}"
-                        status["detail"] = f"({args_str})" if args_str else ""
-
-                elif isinstance(last, ToolMessage):
-                    preview = _preview(str(last.content))
-                    status["step"] = f"결과 수신: {last.name}"
+                # Tool 결과
+                elif isinstance(chunk, ToolMessage):
+                    preview = _preview(str(chunk.content))
+                    status["step"] = f"결과 수신: {chunk.name}"
                     status["detail"] = f"→ {preview}"
-                    last_tool_name = last.name
-                    last_tool_result = str(last.content)
+                    last_tool_name = chunk.name
+                    last_tool_result = str(chunk.content)
 
-                elif isinstance(last, AIMessage) and last.content:
-                    status["step"] = "응답 생성 중"
-                    status["detail"] = ""
-                    content = last.content
+                # 응답 생성 — 토큰 단위로 스트리밍
+                elif isinstance(chunk, AIMessageChunk) and chunk.content:
+                    content = chunk.content
                     if isinstance(content, list):
-                        content = "\n".join(
-                            block.get("text", "") if isinstance(block, dict) else str(block)
-                            for block in content
+                        content = "".join(
+                            b.get("text", "") if isinstance(b, dict) else str(b)
+                            for b in content
                         )
-                    result_holder["content"] = content
-                    result_holder["last_tool"] = last_tool_name
-                    result_holder["last_tool_result"] = last_tool_result
+                    if content:
+                        status["step"] = "응답 생성 중"
+                        status["detail"] = ""
+                        response_tokens.append(content)
+                        status["tokens"] = len(response_tokens)
+
+            # 최종 응답 조합
+            if response_tokens:
+                result_holder["content"] = "".join(response_tokens)
+            result_holder["last_tool"] = last_tool_name
+            result_holder["last_tool_result"] = last_tool_result
 
         except Exception as e:
             result_holder["error"] = str(e)
