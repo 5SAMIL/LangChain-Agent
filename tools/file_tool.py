@@ -103,6 +103,32 @@ def _fix_pdf_text(text: str) -> str:
     return "\n".join(result)
 
 
+def _filter_pdf_noise(text: str) -> str:
+    """PDF에서 세로 텍스트/워터마크로 인해 한 글자씩 줄바꿈된 노이즈 줄을 제거한다.
+    3줄 이상 연속으로 한 글자(대문자 알파벳)만 있는 구간을 통째로 제거한다."""
+    import re
+    lines = text.split("\n")
+    result = []
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        # 한 글자 대문자 알파벳 줄(끝에 숫자 포함 가능)이 연속으로 이어지는지 확인
+        if re.fullmatch(r"[A-Z]\s*\d*", stripped) and len(stripped) <= 4:
+            run_start = i
+            while i < len(lines) and re.fullmatch(r"[A-Z]\s*\d*", lines[i].strip()) and len(lines[i].strip()) <= 4:
+                i += 1
+            run_len = i - run_start
+            # 3줄 이상 연속이면 노이즈로 판단하고 제거
+            if run_len >= 3:
+                continue
+            # 3줄 미만이면 정상 텍스트로 유지
+            result.extend(lines[run_start:i])
+        else:
+            result.append(lines[i])
+            i += 1
+    return "\n".join(result)
+
+
 def _read_content(file_path: str) -> str:
     """파일 확장자에 따라 텍스트 추출"""
     file_path = _resolve_path(file_path)
@@ -121,15 +147,18 @@ def _read_content(file_path: str) -> str:
     if ext in {".ppt", ".pptx"}:
         from pptx import Presentation
         prs = Presentation(file_path)
-        lines = []
-        for slide in prs.slides:
+        sections = []
+        for i, slide in enumerate(prs.slides, 1):
+            lines = []
             for shape in slide.shapes:
                 if shape.has_text_frame:
                     for para in shape.text_frame.paragraphs:
                         text = para.text.strip()
-                        if text:
+                        if text and text != str(i):  # 슬라이드 번호 단독 줄 제거
                             lines.append(text)
-        return "\n".join(lines) or "PPT에서 텍스트를 추출할 수 없습니다."
+            if lines:
+                sections.append(f"## [슬라이드 {i}]\n" + "\n".join(lines))
+        return "\n\n".join(sections) or "PPT에서 텍스트를 추출할 수 없습니다."
 
     if ext in {".doc", ".docx"}:
         from docx import Document
@@ -478,6 +507,7 @@ def read_file_full(file_path: str, page: int = 1) -> str:
                 if page < 1 or page > total_pages:
                     return f"페이지 범위 초과. 이 PDF는 총 {total_pages}페이지입니다. 1~{total_pages} 사이로 입력하세요."
                 text = pdf.pages[page - 1].extract_text() or ""
+                text = _filter_pdf_noise(text)
                 return f"[PDF {page}/{total_pages} 페이지]\n\n{text.strip()}"
         except Exception as e:
             return f"PDF 읽기 실패: {e}"
@@ -496,9 +526,9 @@ def read_file_full(file_path: str, page: int = 1) -> str:
                 if shape.has_text_frame:
                     for para in shape.text_frame.paragraphs:
                         text = para.text.strip()
-                        if text:
+                        if text and text != str(page):  # 슬라이드 번호 단독 줄 제거
                             lines.append(text)
-            content = "\n".join(lines) or "(텍스트 없음)"
+            content = "\n".join(lines) or "(이미지 전용 슬라이드 — 텍스트 없음)"
             return f"[PPTX {page}/{total_slides} 슬라이드]\n\n{content}"
         except Exception as e:
             return f"PPTX 읽기 실패: {e}"
@@ -521,7 +551,7 @@ def read_file_full(file_path: str, page: int = 1) -> str:
             total_pages = len(pages)
             if page < 1 or page > total_pages:
                 return f"페이지 범위 초과. 이 파일은 총 {total_pages}페이지입니다. 1~{total_pages} 사이로 입력하세요."
-            return f"[{ext.upper()} {page}/{total_pages} 페이지]\n\n{pages[page - 1]}"
+            return f"[{ext.lstrip('.').upper()} {page}/{total_pages} 페이지]\n\n{pages[page - 1]}"
         except Exception as e:
             return f"파일 읽기 실패: {e}"
 
