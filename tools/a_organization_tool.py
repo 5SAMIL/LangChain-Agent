@@ -105,17 +105,27 @@ def _classify(text: str, taxonomy: dict) -> dict:
     }
 
 
-def _slugify(value: str) -> str:
-    value = (value or "").strip().lower()
-    value = re.sub(r"\s+", "_", value)
-    value = re.sub(r"[^a-z0-9가-힣_\-]", "", value)
-    return value[:80] if value else "document"
+def _build_basename(source_name: str) -> str:
+    """파일명을 YYYYMMDD_category_ 뒤에 붙을 형태로 변환한다.
+    ' - ' 구분자가 있으면: 앞부분(공백제거) + (뒷부분) 형태로 만든다.
+    예) '강의교안 01 - 인공지능 개요' → '강의교안01(인공지능 개요)'
+    없으면: 공백만 제거해서 반환한다.
+    """
+    stem = Path(source_name).stem or source_name or "document"
+    # ' - ' 구분자로 분리
+    if " - " in stem:
+        parts = stem.split(" - ", 1)
+        prefix = parts[0].replace(" ", "")          # 공백 제거
+        suffix = parts[1].strip()                    # 공백 유지
+        return f"{prefix}({suffix})"
+    else:
+        return stem.replace(" ", "")
 
 
 def _build_suggestion(classification: dict, source_name: str) -> dict:
     date_str = datetime.now().strftime("%Y%m%d")
     category = classification.get("category", "inbox")
-    base_name = _slugify(Path(source_name).stem or source_name or "document")
+    base_name = _build_basename(source_name)
 
     recommended_filename = f"{date_str}_{category}_{base_name}.md"
     recommended_folder = classification.get("default_folder", "data/sorted/inbox")
