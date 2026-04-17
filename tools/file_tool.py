@@ -103,30 +103,151 @@ def _fix_pdf_text(text: str) -> str:
     return "\n".join(result)
 
 
-def _filter_pdf_noise(text: str) -> str:
-    """PDF에서 세로 텍스트/워터마크로 인해 한 글자씩 줄바꿈된 노이즈 줄을 제거한다.
-    3줄 이상 연속으로 한 글자(대문자 알파벳)만 있는 구간을 통째로 제거한다."""
+def _display_width(text: str) -> int:
+    """한국어 등 전각 문자는 2, 나머지는 1로 계산한 표시 너비."""
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in text)
+
+
+def _format_table(rows: list) -> str:
+    """2D 리스트(rows)를 텍스트 표 형태로 변환."""
+    if not rows:
+        return ""
+    # 열 수 통일
+    col_count = max(len(r) for r in rows)
+    rows = [r + [""] * (col_count - len(r)) for r in rows]
+    # 열별 최대 너비 계산
+    col_widths = [
+        max(_display_width(str(rows[r][c])) for r in range(len(rows)))
+        for c in range(col_count)
+    ]
+    sep = "+" + "+".join("-" * (w + 2) for w in col_widths) + "+"
+
+    lines = [sep]
+    for row in rows:
+        cells = []
+        for c, cell in enumerate(row):
+            cell = str(cell)
+            pad = col_widths[c] - _display_width(cell)
+            cells.append(f" {cell}{' ' * pad} ")
+        lines.append("|" + "|".join(cells) + "|")
+        lines.append(sep)
+    return "\n".join(lines)
+
+
+def _fitz_page_text(page) -> str:
+    """pymupdf dict 모드 기반 텍스트 추출.
+    - block→line 구조를 그대로 사용해 글머리 기호가 같은 줄에 자연스럽게 포함
+    - 로고/워터마크 블록(밀도 낮은 블록) 제거
+    - 표는 find_tables()로 행×열(좌→우, 위→아래) 순서로 추출
+    """
     import re
-    lines = text.split("\n")
-    result = []
-    i = 0
-    while i < len(lines):
-        stripped = lines[i].strip()
-        # 한 글자 대문자 알파벳 줄(끝에 숫자 포함 가능)이 연속으로 이어지는지 확인
-        if re.fullmatch(r"[A-Z]\s*\d*", stripped) and len(stripped) <= 4:
-            run_start = i
-            while i < len(lines) and re.fullmatch(r"[A-Z]\s*\d*", lines[i].strip()) and len(lines[i].strip()) <= 4:
-                i += 1
-            run_len = i - run_start
-            # 3줄 이상 연속이면 노이즈로 판단하고 제거
-            if run_len >= 3:
+
+    # 1. 표 먼저 추출 및 영역 기록
+    table_entries = []  # (y0, text)
+    table_bboxes = []
+    try:
+        for tbl in page.find_tables():
+            table_bboxes.append(tbl.bbox)
+            rows = [[str(c or "").strip() for c in row] for row in tbl.extract()]
+            table_entries.append((tbl.bbox[1], _format_table(rows)))
+    except Exception:
+        pass
+
+    def _in_table(x0, y0, x1, y1):
+        for bbox in table_bboxes:
+            if x0 >= bbox[0] - 2 and y0 >= bbox[1] - 2 \
+               and x1 <= bbox[2] + 2 and y1 <= bbox[3] + 2:
+                return True
+        return False
+
+    # 2. 노이즈 블록 영역 파악 (blocks 모드로 로고/워터마크 bbox 수집)
+    noise_bboxes = []
+    for b in page.get_text("blocks"):
+        if b[6] != 0:
+            continue
+        text = b[4].strip()
+        if not text:
+            continue
+        area = (b[2] - b[0]) * (b[3] - b[1])
+        char_count = len(text.replace("\n", "").replace(" ", ""))
+        has_korean = bool(re.search(r"[\uac00-\ud7af]", text))
+        has_bullet = bool(re.search(r"[•·▪▸►◦‣⁃]", text))
+        if not has_korean and not has_bullet and area > 0 and char_count > 0:
+            if (char_count / area) < 0.01 and char_count <= 10:
+                noise_bboxes.append((b[0], b[1], b[2], b[3]))
+
+    def _is_noise(x0, y0, x1, y1):
+        for bbox in noise_bboxes:
+            if x0 >= bbox[0] - 1 and y0 >= bbox[1] - 1 \
+               and x1 <= bbox[2] + 1 and y1 <= bbox[3] + 1:
+                return True
+        return False
+
+    # 3. rawdict 모드로 문자 단위 위치 분석 — 공백 문자 없이 간격으로만 띄어쓰기를
+    #    표현하는 PDF도 처리 (문자 간격 > 폰트 크기 * 0.25 이면 공백 삽입)
+    line_entries = []  # (y0, x0, text)
+    for block in page.get_text("rawdict", sort=True).get("blocks", []):
+        # 이미지 블록 → 위치에 "(이미지)" 표시
+        if block.get("type") == 1:
+            line_entries.append((block["bbox"][1], block["bbox"][0], "(이미지)"))
+            continue
+        if block.get("type") != 0:
+            continue
+        bx0, by0, bx1, by1 = block["bbox"]
+        if _in_table(bx0, by0, bx1, by1):
+            continue
+        if _is_noise(bx0, by0, bx1, by1):
+            continue
+        for line in block.get("lines", []):
+            # 모든 span의 문자를 x 순으로 수집
+            chars = []
+            for span in line.get("spans", []):
+                size = span.get("size", 10)
+                for ch in span.get("chars", []):
+                    c = ch.get("c", "")
+                    if not c:
+                        continue
+                    ox = ch["origin"][0]
+                    x1c = ch["bbox"][2]
+                    chars.append({"c": c, "x": ox, "x1": x1c, "size": size})
+            if not chars:
                 continue
-            # 3줄 미만이면 정상 텍스트로 유지
-            result.extend(lines[run_start:i])
+            chars.sort(key=lambda c: c["x"])
+
+            # 문자 간격으로 공백 여부 판단
+            text = chars[0]["c"]
+            for i in range(1, len(chars)):
+                gap = chars[i]["x"] - chars[i - 1]["x1"]
+                if gap > chars[i - 1]["size"] * 0.25:
+                    text += " "
+                text += chars[i]["c"]
+
+            text = text.strip()
+            if text:
+                line_entries.append((line["bbox"][1], line["bbox"][0], text))
+
+    # 4. y0 기준 5pt 이내 줄은 같은 행으로 묶어 x0 순으로 공백 조인
+    line_entries.sort(key=lambda x: (x[0], x[1]))
+    rows = []
+    for entry in line_entries:
+        if rows and abs(entry[0] - rows[-1][0][0]) <= 5:
+            rows[-1].append(entry)
         else:
-            result.append(lines[i])
-            i += 1
-    return "\n".join(result)
+            rows.append([entry])
+
+    text_entries = []  # (y0, text)
+    for row in rows:
+        y0 = row[0][0]
+        row_text = " ".join(t for _, _, t in sorted(row, key=lambda x: x[1]))
+        text_entries.append((y0, row_text))
+
+    # 5. 표와 텍스트를 y 위치 순으로 합치기
+    for y0, ttext in table_entries:
+        text_entries.append((y0, ttext))
+    text_entries.sort(key=lambda x: x[0])
+
+    return "\n".join(t for _, t in text_entries)
 
 
 def _read_content(file_path: str) -> str:
@@ -135,12 +256,10 @@ def _read_content(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
 
     if ext == ".pdf":
-        import pdfplumber
-        with pdfplumber.open(file_path) as pdf:
-            pages_text = []
-            for page in pdf.pages:
-                text = page.extract_text() or ""
-                pages_text.append(text)
+        import fitz
+        doc = fitz.open(file_path)
+        pages_text = [_fitz_page_text(doc[i]) for i in range(doc.page_count)]
+        doc.close()
         text = "\n".join(pages_text).strip()
         return text or "PDF에서 텍스트를 추출할 수 없습니다."
 
@@ -412,51 +531,58 @@ def copy_file(source_path: str, destination_dir: str = "") -> str:
 
 def _split_docx_pages(file_path: str) -> list:
     """DOCX를 실제 페이지 단위로 분할.
-    우선순위: lastRenderedPageBreak(Word 렌더 기준) → 명시적 페이지 나누기 → 50단락 단위"""
+    우선순위: lastRenderedPageBreak(Word 렌더 기준) → 명시적 페이지 나누기 → 50단락 단위
+    단락과 표를 문서 순서대로 처리."""
     from docx import Document
     from docx.oxml.ns import qn
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
     from lxml import etree
 
     doc = Document(file_path)
     pages = []
     current = []
 
-    for para in doc.paragraphs:
-        # 단락 시작 전 page_break_before 속성
-        if para.paragraph_format.page_break_before and current:
+    def _flush():
+        if current:
             pages.append("\n".join(current))
-            current = []
+            current.clear()
 
-        para_text_parts = []
+    # body 요소를 순서대로 순회 (단락 + 표 혼재)
+    for child in doc.element.body:
+        tag = etree.QName(child.tag).localname if child.tag != etree.Comment else ""
+
+        # 표 처리
+        if tag == "tbl":
+            tbl = Table(child, doc)
+            tbl_rows = []
+            for row in tbl.rows:
+                tbl_rows.append([cell.text.strip() for cell in row.cells])
+            current.append(_format_table(tbl_rows))
+            continue
+
+        # 단락 처리
+        if tag != "p":
+            continue
+        para = Paragraph(child, doc)
+
+        if para.paragraph_format.page_break_before and current:
+            _flush()
 
         for run in para.runs:
             run_el = run._element
-            for child in run_el:
-                tag = etree.QName(child.tag).localname if child.tag != etree.Comment else ""
-                # lastRenderedPageBreak — Word가 렌더링 시 기록한 실제 페이지 나누기
-                if tag == "lastRenderedPageBreak":
-                    text_so_far = run.text[:list(run_el).index(child)] if para_text_parts else ""
-                    if text_so_far.strip():
-                        para_text_parts.append(text_so_far.strip())
-                    if para_text_parts or current:
-                        current.extend(para_text_parts)
-                        para_text_parts = []
-                        pages.append("\n".join(current))
-                        current = []
-                # 명시적 페이지 나누기 (w:br w:type="page")
-                elif tag == "br" and child.get(qn("w:type")) == "page":
-                    current.extend(para_text_parts)
-                    para_text_parts = []
-                    if current:
-                        pages.append("\n".join(current))
-                        current = []
+            for rchild in run_el:
+                rtag = etree.QName(rchild.tag).localname if rchild.tag != etree.Comment else ""
+                if rtag == "lastRenderedPageBreak":
+                    _flush()
+                elif rtag == "br" and rchild.get(qn("w:type")) == "page":
+                    _flush()
 
         text = para.text.strip()
         if text:
             current.append(text)
 
-    if current:
-        pages.append("\n".join(current))
+    _flush()
 
     # 페이지 나누기를 전혀 감지 못한 경우 50단락 단위로 분할
     if len(pages) <= 1:
@@ -501,14 +627,15 @@ def read_file_full(file_path: str, page: int = 1) -> str:
     # PDF — 실제 페이지
     if ext == ".pdf":
         try:
-            import pdfplumber
-            with pdfplumber.open(file_path) as pdf:
-                total_pages = len(pdf.pages)
-                if page < 1 or page > total_pages:
-                    return f"페이지 범위 초과. 이 PDF는 총 {total_pages}페이지입니다. 1~{total_pages} 사이로 입력하세요."
-                text = pdf.pages[page - 1].extract_text() or ""
-                text = _filter_pdf_noise(text)
-                return f"[PDF {page}/{total_pages} 페이지]\n\n{text.strip()}"
+            import fitz
+            doc = fitz.open(file_path)
+            total_pages = doc.page_count
+            if page < 1 or page > total_pages:
+                doc.close()
+                return f"페이지 범위 초과. 이 PDF는 총 {total_pages}페이지입니다. 1~{total_pages} 사이로 입력하세요."
+            text = _fitz_page_text(doc[page - 1])
+            doc.close()
+            return f"[PDF {page}/{total_pages} 페이지]\n\n{text.strip()}"
         except Exception as e:
             return f"PDF 읽기 실패: {e}"
 
@@ -522,7 +649,20 @@ def read_file_full(file_path: str, page: int = 1) -> str:
                 return f"슬라이드 범위 초과. 이 파일은 총 {total_slides}슬라이드입니다. 1~{total_slides} 사이로 입력하세요."
             slide = prs.slides[page - 1]
             lines = []
-            for shape in slide.shapes:
+            # top 기준으로 정렬해 시각적 위→아래 순서 보장
+            sorted_shapes = sorted(slide.shapes, key=lambda s: (s.top or 0, s.left or 0))
+            for shape in sorted_shapes:
+                # 이미지 shape → 위치에 "(이미지)" 표시
+                if shape.shape_type in (13, 3):  # PICTURE, LINKED_PICTURE
+                    lines.append("(이미지)")
+                    continue
+                # 표 shape → _format_table로 텍스트 표 변환
+                if shape.shape_type == 19:  # TABLE
+                    tbl_rows = []
+                    for row in shape.table.rows:
+                        tbl_rows.append([cell.text.strip() for cell in row.cells])
+                    lines.append(_format_table(tbl_rows))
+                    continue
                 if shape.has_text_frame:
                     for para in shape.text_frame.paragraphs:
                         text = para.text.strip()
