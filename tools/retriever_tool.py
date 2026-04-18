@@ -1,8 +1,7 @@
 """벡터DB(Chroma) 기반 지식 저장/검색 Tool"""
 import os
 from langchain_core.tools import tool
-from langchain_ollama import OllamaEmbeddings
-# from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
@@ -10,8 +9,7 @@ VECTORDB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", 
 
 
 def _get_vectorstore() -> Chroma:
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
-    # embeddings = OpenAIEmbeddings(model="text-embedding-3-small")  # OpenAI 사용 시
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     return Chroma(persist_directory=VECTORDB_DIR, embedding_function=embeddings)
 
 

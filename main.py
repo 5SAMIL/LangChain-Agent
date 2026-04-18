@@ -184,8 +184,7 @@ def chat(graph, user_input: str) -> str:
 
 def main():
     print("PKM Agent 시작 (종료: 'quit' / 중단: Ctrl+C)")
-    # graph = build_graph(model="qwen2.5:14b")  # Ollama 사용 시
-    graph = build_graph(model="gpt-4o-mini")    # OpenAI 사용 시
+    graph = build_graph(model="gpt-4o-mini")
 
     while True:
         try:

@@ -1,5 +1,4 @@
 """LangGraph 기반 PKM Agent 그래프 정의"""
-from langchain_ollama import ChatOllama  # Ollama 사용 시
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
@@ -73,7 +72,6 @@ CRITICAL RULES — MUST FOLLOW WITHOUT EXCEPTION:
 
 
 def build_graph(model: str = "gpt-4o-mini"):
-    # llm = ChatOllama(model=model, temperature=0)  # Ollama 사용 시
     llm = ChatOpenAI(model=model, temperature=0)
     graph = create_react_agent(
         model=llm,
