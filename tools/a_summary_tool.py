@@ -25,6 +25,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
+from tools.note_ops_utils import note_relative_path, resolve_note_reference_path
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -32,7 +33,6 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 # ----- 설정값 ---------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-NOTES_DIR = PROJECT_ROOT / "data" / "notes"
 
 LLM_MODEL = "gpt-4o-mini"
 LLM_MAX_INPUT_CHARS = 12_000  # 토큰 절약을 위해 긴 문서는 앞부분만 전달
@@ -176,12 +176,10 @@ def _resolve_input(content: str, note_title: str, source_name: str, source_type:
         return _normalize(content), (source_name.strip() or "manual_input"), (source_type.strip() or "text")
 
     if note_title:
-        filename = f"{note_title.replace(' ', '_')}.md"
-        path = NOTES_DIR / filename
-        if not path.exists():
-            raise FileNotFoundError(f"노트를 찾지 못했습니다: {path}")
+        path = Path(resolve_note_reference_path(note_title))
         raw = path.read_text(encoding="utf-8", errors="ignore")
-        return _normalize(raw), (source_name.strip() or filename), (source_type.strip() or "saved_note")
+        resolved_source = source_name.strip() or os.path.basename(note_relative_path(str(path)))
+        return _normalize(raw), resolved_source, (source_type.strip() or "saved_note")
 
     raise ValueError("content 또는 note_title 중 하나는 반드시 제공해야 합니다.")
 

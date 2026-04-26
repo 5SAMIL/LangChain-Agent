@@ -16,16 +16,17 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 
 from langchain_core.tools import tool
+from tools.note_ops_utils import note_relative_path, resolve_note_reference_path
 
 
 # ----- 설정값 ---------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-NOTES_DIR = PROJECT_ROOT / "data" / "notes"
 TAXONOMY_PATH = PROJECT_ROOT / "data" / "taxonomy.json"
 
 DEFAULT_TAXONOMY = {
@@ -137,12 +138,10 @@ def _resolve_input(content: str, note_title: str, source_name: str, source_type:
         return _normalize(content), (source_name.strip() or "manual_input"), (source_type.strip() or "text")
 
     if note_title:
-        filename = f"{note_title.replace(' ', '_')}.md"
-        path = NOTES_DIR / filename
-        if not path.exists():
-            raise FileNotFoundError(f"노트를 찾지 못했습니다: {path}")
+        path = Path(resolve_note_reference_path(note_title))
         raw = path.read_text(encoding="utf-8", errors="ignore")
-        return _normalize(raw), (source_name.strip() or filename), (source_type.strip() or "saved_note")
+        resolved_source = source_name.strip() or os.path.basename(note_relative_path(str(path)))
+        return _normalize(raw), resolved_source, (source_type.strip() or "saved_note")
 
     raise ValueError("content 또는 note_title 중 하나는 반드시 제공해야 합니다.")
 

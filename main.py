@@ -82,12 +82,21 @@ def _preview(text: str, limit: int = 40) -> str:
     return text[:limit] + "…" if len(text) > limit else text
 
 
-# Tool 결과를 그대로 반환할 읽기 전용 툴 목록
-READ_ONLY_TOOLS = {
+# Tool 결과를 그대로 반환할 툴 목록
+DIRECT_OUTPUT_TOOLS = {
     "read_file_full", "read_file_structured", "read_image",
     "find_file", "list_directory", "scan_files",
     "find_connections", "detect_duplicates",
     "search_knowledge", "read_note", "list_notes",
+    "file_to_note",
+    "preview_organized_path", "organize_and_save_note",
+    "preview_file_organized_path", "organize_file_and_save_note",
+    "rename_organized_folder",
+    "move_note_to_category", "rename_note_file",
+    "preview_reorganized_note", "reorganize_existing_note",
+    "update_note_metadata", "batch_reorganize_notes",
+    "a_generate_summary", "a_extract_keywords",
+    "a_generate_tags", "a_classify_document", "a_suggest_organization",
 }
 
 
@@ -102,6 +111,7 @@ def chat(graph, user_input: str) -> str:
 
             last_tool_name = None
             last_tool_result = None
+            tool_results = []
             response_tokens = []
 
             for chunk, metadata in graph.stream(
@@ -126,6 +136,7 @@ def chat(graph, user_input: str) -> str:
                     status["detail"] = f"→ {preview}"
                     last_tool_name = chunk.name
                     last_tool_result = str(chunk.content)
+                    tool_results.append((chunk.name, str(chunk.content)))
 
                 # 응답 생성 — 토큰 단위로 스트리밍
                 elif isinstance(chunk, AIMessageChunk) and chunk.content:
@@ -146,6 +157,7 @@ def chat(graph, user_input: str) -> str:
                 result_holder["content"] = "".join(response_tokens)
             result_holder["last_tool"] = last_tool_name
             result_holder["last_tool_result"] = last_tool_result
+            result_holder["tool_results"] = tool_results
 
         except Exception as e:
             result_holder["error"] = str(e)
@@ -171,10 +183,16 @@ def chat(graph, user_input: str) -> str:
     if "error" in result_holder:
         raise Exception(result_holder["error"])
 
-    # 읽기 전용 툴이면 LLM 응답 대신 Tool 결과를 바로 반환
-    last_tool = result_holder.get("last_tool")
-    if last_tool in READ_ONLY_TOOLS and result_holder.get("last_tool_result"):
-        return result_holder["last_tool_result"].strip()
+    # direct-output 계열이면 LLM 응답 대신 Tool 결과를 그대로 반환
+    tool_results = result_holder.get("tool_results", [])
+    if tool_results:
+        direct_results = [
+            content.strip()
+            for tool_name, content in tool_results
+            if tool_name in DIRECT_OUTPUT_TOOLS and str(content).strip()
+        ]
+        if len(direct_results) == len(tool_results):
+            return "\n\n".join(direct_results)
 
     content = result_holder.get("content", "")
     content = content.replace("STOP", "")
