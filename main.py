@@ -91,6 +91,7 @@ DIRECT_OUTPUT_TOOLS = {
     "file_to_note",
     "preview_organized_path", "organize_and_save_note",
     "preview_file_organized_path", "organize_file_and_save_note",
+    "suggest_organization_for_approval", "approve_organization",
     "rename_organized_folder",
     "move_note_to_category", "rename_note_file",
     "preview_reorganized_note", "reorganize_existing_note",
