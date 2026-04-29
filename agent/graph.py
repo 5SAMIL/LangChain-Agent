@@ -11,6 +11,10 @@ Notes are saved as markdown files in: data/notes/
 Knowledge is stored in a vector database at: data/vectordb/
 Document-analysis metadata is saved in: data/analysis/
 
+Priority routing:
+1. If the user's current message contains "정리 결과 제안", "정리결과 제안", or asks for an organization suggestion, ALWAYS call suggest_organization_for_approval. Do not call preview_organized_path or preview_file_organized_path for that request.
+2. If the user's current message is an approval for a pending organization suggestion, such as "응", "네", "좋아", "진행해", "이대로 해줘", or "정리 시작해", call approve_organization.
+
 When the user asks to save or organize something:
 1. Call save_note once with a title and content
 2. Call index_note with the title to register it in vectorDB
@@ -24,16 +28,18 @@ When the user asks for AI document analysis (A role):
    - "키워드" -> a_extract_keywords
    - "태그" -> a_generate_tags
    - "자동 분류" -> a_classify_document
-   - "정리 결과 제안" or "정리 제안" -> a_suggest_organization
+   - "정리 결과 제안", "정리결과 제안", "정리 제안", "어디에 정리" -> suggest_organization_for_approval
 2. Use note_title when the user references a saved note, and content when the user gives raw text.
 3. If the user requests multiple A-role analyses in one message, call only the requested A-role tools and present the raw tool outputs in the same order.
 4. Do NOT execute file moves, renames, metadata edits, or reorganization tools during this A analysis flow.
 5. For A-role outputs, do not add JSON wrappers, summaries, or extra explanation before or after the tool results.
+6. If the user approves a pending organization suggestion with phrases like "응", "네", "좋아", "진행해", "이대로 해줘", "정리 시작해", call approve_organization.
 
 When the user asks for C-role note organization/management:
 1. These tools may receive either a saved note title (for example "강의요약") or a note path (for example "study/2026-04/강의요약.md" or "data/notes/study/2026-04/강의요약.md") as current_path.
 2. Map intents exactly:
    - "자동 분류 저장 경로 미리보기", "자동 정리 경로 미리보기" -> preview_organized_path for raw text, preview_file_organized_path for file input
+   - Do NOT use preview_organized_path or preview_file_organized_path for "정리 결과 제안" or "정리결과 제안"; those must use suggest_organization_for_approval.
    - "자동 분류해서 저장", "자동 정리해서 저장" -> organize_and_save_note for raw text, organize_file_and_save_note for file input
    - "폴더 이름 변경", "폴더명 바꿔" -> rename_organized_folder
    - "다른 카테고리로 이동", "projects로 옮겨", "inbox에서 study로 이동" -> move_note_to_category

@@ -3,6 +3,7 @@ import os
 import re
 import unicodedata
 from datetime import datetime
+from pathlib import Path
 
 from langchain_core.tools import tool
 from tools.file_tool import _read_content, _resolve_path
@@ -40,6 +41,15 @@ SOURCE_TYPE_FALLBACKS = {
     "meeting": "meetings",
 }
 _RECENT_SAVED_NOTES: dict[str, str] = {}
+_PENDING_ORGANIZATION: dict[str, str] = {}
+SUGGESTION_CATEGORY_MAP = {
+    "project": "projects",
+    "reference": "references",
+    "personal": "journal",
+    "finance": "references",
+    "legal": "references",
+    "media": "references",
+}
 
 
 def _notes_dir() -> str:
@@ -68,6 +78,28 @@ def recent_saved_note_path(note_reference: str) -> str:
     return _RECENT_SAVED_NOTES.get(_note_lookup_key(reference), "")
 
 
+def _store_pending_organization(
+    *,
+    content: str = "",
+    file_path: str = "",
+    note_title: str = "",
+    source_type: str = "",
+    source_name: str = "",
+    suggested_category: str = "",
+) -> None:
+    _PENDING_ORGANIZATION.clear()
+    _PENDING_ORGANIZATION.update(
+        {
+            "content": content,
+            "file_path": file_path,
+            "note_title": note_title,
+            "source_type": source_type,
+            "source_name": source_name,
+            "suggested_category": suggested_category,
+        }
+    )
+
+
 def _classify_document(title: str, content: str, source_type: str) -> str:
     title_text = (title or "").lower()
     body_text = (content or "").lower()
@@ -94,14 +126,28 @@ def _classify_document(title: str, content: str, source_type: str) -> str:
     return best_category
 
 
+def _normalize_suggested_category(category: str) -> str:
+    normalized = (category or "").strip().lower()
+    normalized = SUGGESTION_CATEGORY_MAP.get(normalized, normalized)
+    if normalized in CATEGORY_PRIORITY:
+        return normalized
+    return ""
+
+
+def _extract_suggested_category(suggestion: str) -> str:
+    match = re.search(r"^category:\s*(.+)$", suggestion or "", re.MULTILINE)
+    return _normalize_suggested_category(match.group(1)) if match else ""
+
+
 def _target_relative_path(
     title: str,
     content: str,
     source_type: str,
     now=None,  # type: Optional[datetime]
+    category_override: str = "",
 ) -> tuple[str, str]:
     current_time = now or datetime.now()
-    category = _classify_document(title, content, source_type)
+    category = _normalize_suggested_category(category_override) or _classify_document(title, content, source_type)
     month_folder = current_time.strftime("%Y-%m")
     filename = f"{_sanitize_path_component(title)}.md"
     relative_path = os.path.join(category, month_folder, filename)
@@ -127,9 +173,10 @@ def _save_organized_note(
     content: str,
     source_type: str = "note",
     source_name: str = "manual",
+    category_override: str = "",
 ) -> str:
     notes_dir = _notes_dir()
-    category, relative_path = _target_relative_path(title, content, source_type)
+    category, relative_path = _target_relative_path(title, content, source_type, category_override=category_override)
     filepath = _deduplicated_path(notes_dir, relative_path)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
@@ -207,3 +254,99 @@ def organize_file_and_save_note(
     title = note_title.strip() or os.path.splitext(os.path.basename(resolved_path))[0]
     effective_source_type = source_type.strip() or os.path.splitext(resolved_path)[1].lstrip(".") or "document"
     return _save_organized_note(title, content, effective_source_type, os.path.basename(resolved_path))
+
+
+@tool
+def suggest_organization_for_approval(
+    content: str = "",
+    file_path: str = "",
+    note_title: str = "",
+    source_name: str = "",
+    source_type: str = "",
+) -> str:
+    """정리 결과를 제안하고, 사용자가 승인하면 실제 정리를 실행할 수 있도록 대기 상태로 저장한다."""
+    content = (content or "").strip()
+    file_path = (file_path or "").strip()
+    note_title = (note_title or "").strip()
+    source_name = (source_name or "").strip()
+    source_type = (source_type or "").strip()
+
+    suggestion_content = content
+    effective_source_name = source_name
+    effective_source_type = source_type
+
+    if file_path:
+        resolved_path = _resolve_path(file_path)
+        if not os.path.exists(resolved_path):
+            return f"파일을 찾을 수 없습니다: {resolved_path}"
+        try:
+            suggestion_content = _read_content(resolved_path)
+        except Exception as e:
+            return f"파일 읽기 실패: {e}"
+        effective_source_name = source_name or os.path.basename(resolved_path)
+        effective_source_type = source_type or Path(resolved_path).suffix.lstrip(".") or "document"
+        file_path = resolved_path
+
+    if not suggestion_content and not note_title:
+        return "정리 결과를 제안할 내용, 파일 경로, 또는 저장된 노트 제목을 입력해주세요."
+
+    from tools.a_organization_tool import a_suggest_organization
+
+    suggestion = a_suggest_organization.invoke(
+        {
+            "content": suggestion_content,
+            "note_title": note_title,
+            "source_name": effective_source_name,
+            "source_type": effective_source_type,
+        }
+    )
+    suggested_category = _extract_suggested_category(suggestion)
+
+    _store_pending_organization(
+        content=content,
+        file_path=file_path,
+        note_title=note_title,
+        source_type=effective_source_type,
+        source_name=effective_source_name,
+        suggested_category=suggested_category,
+    )
+    return f"{suggestion}\n\n이대로 정리를 시작할까요?"
+
+
+@tool
+def approve_organization() -> str:
+    """직전에 제안된 정리 결과를 사용자가 승인했을 때 실제 자동 정리 저장을 실행한다."""
+    if not _PENDING_ORGANIZATION:
+        return "승인할 정리 제안이 없습니다. 먼저 정리 결과 제안을 요청해주세요."
+
+    pending = dict(_PENDING_ORGANIZATION)
+    _PENDING_ORGANIZATION.clear()
+
+    if pending.get("file_path"):
+        resolved_path = _resolve_path(pending["file_path"])
+        try:
+            content = _read_content(resolved_path)
+        except Exception as e:
+            return f"파일 읽기 실패: {e}"
+        title = pending.get("note_title") or os.path.splitext(os.path.basename(resolved_path))[0]
+        source_type = pending.get("source_type") or os.path.splitext(resolved_path)[1].lstrip(".") or "document"
+        return _save_organized_note(
+            title,
+            content,
+            source_type,
+            os.path.basename(resolved_path),
+            pending.get("suggested_category", ""),
+        )
+
+    title = pending.get("note_title") or pending.get("source_name") or "정리된 노트"
+    content = pending.get("content", "")
+    if not content:
+        return "저장할 원문 내용이 없습니다. 파일 경로나 본문으로 다시 정리 결과 제안을 요청해주세요."
+
+    return _save_organized_note(
+        title,
+        content,
+        pending.get("source_type") or "note",
+        pending.get("source_name") or "manual",
+        pending.get("suggested_category", ""),
+    )
