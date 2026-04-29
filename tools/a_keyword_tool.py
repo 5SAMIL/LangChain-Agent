@@ -45,6 +45,8 @@ def _normalize(text: str) -> str:
     if not text:
         return ""
     text = text.replace("\x00", " ").replace("\r\n", "\n").replace("\r", "\n")
+    # 파일 리더가 이미지 블록 위치에 삽입하는 플레이스홀더 제거
+    text = re.sub(r"\(이미지\)", "", text)
     lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in text.split("\n")]
     return "\n".join(ln for ln in lines if ln).strip()
 
