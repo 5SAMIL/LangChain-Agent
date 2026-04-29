@@ -83,7 +83,7 @@ def _target_relative_path(
     title: str,
     content: str,
     source_type: str,
-    now: datetime | None = None,
+    now=None,  # type: Optional[datetime]
 ) -> tuple[str, str]:
     current_time = now or datetime.now()
     category = _classify_document(title, content, source_type)

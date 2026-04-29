@@ -86,7 +86,7 @@ def _preview(text: str, limit: int = 40) -> str:
 DIRECT_OUTPUT_TOOLS = {
     "read_file_full", "read_file_structured", "read_image",
     "find_file", "list_directory", "scan_files",
-    "find_connections", "detect_duplicates",
+    "find_connections", "detect_duplicates", "index_all_notes", "index_note",
     "search_knowledge", "read_note", "list_notes",
     "file_to_note",
     "preview_organized_path", "organize_and_save_note",
