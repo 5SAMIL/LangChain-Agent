@@ -2,6 +2,7 @@
 data/notes/
 data/vectordb/
 data/analysis/
+data/duplicate_cache.json
 .DS_Store
 
 # Byte-compiled / optimized / DLL files
