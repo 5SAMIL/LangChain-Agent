@@ -24,6 +24,16 @@ def _sanitize_folder_name(value: str) -> str:
 
 def _resolve_relative_folder(relative_folder: str) -> str:
     normalized = (relative_folder or "").strip().strip("'\"").replace("\\", "/")
+    notes_dir = os.path.realpath(_notes_dir())
+
+    if os.path.isabs(normalized):
+        real_value = os.path.realpath(normalized)
+        try:
+            if os.path.commonpath([notes_dir, real_value]) == notes_dir:
+                normalized = os.path.relpath(real_value, notes_dir).replace("\\", "/")
+        except ValueError:
+            pass
+
     if normalized.startswith("data/notes/"):
         normalized = normalized[len("data/notes/"):]
 

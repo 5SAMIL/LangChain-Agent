@@ -10,6 +10,7 @@ from tools.organizer_tool import (
     _deduplicated_path,
     _notes_dir,
     _sanitize_path_component,
+    recent_saved_note_path,
 )
 
 METADATA_ORDER = ["저장 시각", "문서 유형", "출처", "분류 폴더", "태그"]
@@ -158,6 +159,13 @@ def resolve_note_reference_path(note_reference: str) -> str:
     raw_reference = (note_reference or "").strip().strip("'\"")
     if not raw_reference:
         raise FileNotFoundError("노트 경로 또는 제목을 입력해주세요.")
+
+    recent_path = recent_saved_note_path(raw_reference)
+    if recent_path:
+        recent_absolute_path = note_absolute_path(recent_path)
+        ensure_inside_notes_dir(recent_absolute_path)
+        if os.path.isfile(recent_absolute_path):
+            return recent_absolute_path
 
     direct_path = note_absolute_path(raw_reference)
     ensure_inside_notes_dir(direct_path)

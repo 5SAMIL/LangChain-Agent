@@ -39,6 +39,7 @@ SOURCE_TYPE_FALLBACKS = {
     "journal": "journal",
     "meeting": "meetings",
 }
+_RECENT_SAVED_NOTES: dict[str, str] = {}
 
 
 def _notes_dir() -> str:
@@ -51,6 +52,20 @@ def _sanitize_path_component(value: str) -> str:
     normalized = re.sub(r'[\\/:\*\?"<>\|]+', "_", normalized)
     normalized = re.sub(r"_+", "_", normalized).strip("._")
     return normalized or "untitled"
+
+
+def _note_lookup_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value or "")
+    normalized = normalized.replace("_", " ").strip().lower()
+    return re.sub(r"\s+", " ", normalized)
+
+
+def recent_saved_note_path(note_reference: str) -> str:
+    """현재 프로세스에서 같은 제목으로 마지막 저장된 노트 경로를 반환한다."""
+    reference = (note_reference or "").strip().strip("'\"")
+    if not reference or "/" in reference or reference.endswith(".md"):
+        return ""
+    return _RECENT_SAVED_NOTES.get(_note_lookup_key(reference), "")
 
 
 def _classify_document(title: str, content: str, source_type: str) -> str:
@@ -119,6 +134,7 @@ def _save_organized_note(
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     relative_saved_path = os.path.relpath(filepath, notes_dir)
+    saved_note_path = f"data/notes/{relative_saved_path}"
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(f"# {title}\n\n")
         f.write(f"*저장 시각: {datetime.now().strftime('%Y-%m-%d %H:%M')}*\n")
@@ -127,7 +143,8 @@ def _save_organized_note(
         f.write(f"*분류 폴더: {category}*\n\n")
         f.write(content)
 
-    return f"자동 정리 완료: data/notes/{relative_saved_path}"
+    _RECENT_SAVED_NOTES[_note_lookup_key(title)] = saved_note_path
+    return f"자동 정리 완료: {saved_note_path}"
 
 
 @tool

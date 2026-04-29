@@ -8,6 +8,7 @@ from tools.note_ops_utils import (
     build_category_target_path,
     deduplicated_note_path,
     ensure_inside_notes_dir,
+    note_root_dir,
     note_relative_path,
     parse_note_file,
     resolve_note_reference_path,
@@ -39,6 +40,15 @@ def move_note_to_category(
             new_category,
             filename,
         )
+
+    base_destination_path = os.path.join(note_root_dir(), destination_relative_path)
+    ensure_inside_notes_dir(base_destination_path)
+
+    if os.path.realpath(base_destination_path) == os.path.realpath(source_path):
+        metadata["분류 폴더"] = new_category
+        metadata.setdefault("저장 시각", datetime.now().strftime("%Y-%m-%d %H:%M"))
+        write_note_file(source_path, title, metadata, body)
+        return f"노트가 이미 {new_category}에 있습니다: data/notes/{source_relative_path}"
 
     destination_path = deduplicated_note_path(destination_relative_path)
     ensure_inside_notes_dir(destination_path)
