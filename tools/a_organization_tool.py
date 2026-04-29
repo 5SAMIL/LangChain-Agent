@@ -107,18 +107,21 @@ def _classify(text: str, taxonomy: dict) -> dict:
 
 
 def _build_basename(source_name: str) -> str:
-    """파일명을 YYYYMMDD_category_ 뒤에 붙을 형태로 변환한다.
-    ' - ' 구분자가 있으면: 앞부분(공백제거) + (뒷부분) 형태로 만든다.
-    예) '강의교안 01 - 인공지능 개요' → '강의교안01(인공지능 개요)'
-    없으면: 공백만 제거해서 반환한다.
     """
+    파일명을 날짜 뒤에 붙을 형태로 변환한다.
+    예) '강의교안_01_-_인공지능_개요' → '강의교안01 - 인공지능개요'
+    예) '강의교안 01 - 인공지능 개요'  → '강의교안01 - 인공지능개요'
+    """
+
     stem = Path(source_name).stem or source_name or "document"
-    # ' - ' 구분자로 분리
+    # 언더바를 공백으로 정규화 (저장된 노트 파일명 대응)
+    stem = stem.replace("_", " ").strip()
+
     if " - " in stem:
         parts = stem.split(" - ", 1)
-        prefix = parts[0].replace(" ", "")          # 공백 제거
-        suffix = parts[1].strip()                    # 공백 유지
-        return f"{prefix}({suffix})"
+        prefix = parts[0].replace(" ", "")   # 공백 제거: '강의교안01'
+        suffix = parts[1].replace(" ", "")   # 공백 제거: '인공지능개요'
+        return f"{prefix} - {suffix}"
     else:
         return stem.replace(" ", "")
 
@@ -128,7 +131,7 @@ def _build_suggestion(classification: dict, source_name: str) -> dict:
     category = classification.get("category", "inbox")
     base_name = _build_basename(source_name)
 
-    recommended_filename = f"{date_str}_{category}_{base_name}.md"
+    recommended_filename = f"[{date_str}] {base_name}.md"
     recommended_folder = classification.get("default_folder", "data/sorted/inbox")
     confidence = round(max(0.4, float(classification.get("confidence", 0.4))), 4)
 
