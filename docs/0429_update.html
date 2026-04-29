@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PKM Agent 업데이트 — 2026-04-29</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      line-height: 1.7;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff;
+      padding: 48px 40px 36px;
+    }
+    header .badge {
+      display: inline-block;
+      background: #e94560;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      margin-bottom: 14px;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    header p {
+      font-size: 14px;
+      color: #a8b2c8;
+    }
+    header .meta {
+      margin-top: 20px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    header .meta span {
+      font-size: 13px;
+      color: #c8d0e0;
+      background: rgba(255,255,255,0.08);
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 80px;
+    }
+
+    .toc {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 36px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .toc h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #888;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .toc ol {
+      padding-left: 20px;
+    }
+    .toc li {
+      margin: 6px 0;
+    }
+    .toc a {
+      color: #0f3460;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .toc a:hover { text-decoration: underline; }
+
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin-bottom: 28px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #f0f2f5;
+    }
+    .section-header .icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .icon-new    { background: #e8f5e9; }
+    .icon-fix    { background: #fff3e0; }
+    .icon-mod    { background: #e3f2fd; }
+    .icon-test   { background: #f3e5f5; }
+    .icon-config { background: #fce4ec; }
+
+    .section-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+    .section-header .file-tag {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .tag-new    { background: #e8f5e9; color: #2e7d32; }
+    .tag-fix    { background: #fff3e0; color: #e65100; }
+    .tag-mod    { background: #e3f2fd; color: #1565c0; }
+    .tag-test   { background: #f3e5f5; color: #6a1b9a; }
+    .tag-config { background: #fce4ec; color: #c62828; }
+
+    .file-path {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      background: #f4f6f9;
+      color: #555;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      display: inline-block;
+    }
+
+    ul.changes {
+      list-style: none;
+      padding: 0;
+    }
+    ul.changes li {
+      display: flex;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f2f5;
+      font-size: 14px;
+      align-items: flex-start;
+    }
+    ul.changes li:last-child { border-bottom: none; }
+    ul.changes li .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .dot-new    { background: #4caf50; }
+    .dot-fix    { background: #ff9800; }
+    .dot-mod    { background: #2196f3; }
+
+    .tool-block {
+      background: #f8f9fc;
+      border-left: 4px solid #0f3460;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    .tool-block .tool-name {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f3460;
+      margin-bottom: 6px;
+    }
+    .tool-block p {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .flow-box {
+      background: #1a1a2e;
+      color: #a8e6cf;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin: 16px 0;
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.8;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 16px 0;
+    }
+    th {
+      background: #f0f2f5;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 700;
+      color: #444;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f2f5;
+      color: #333;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .prompt-example {
+      background: #f0f4ff;
+      border: 1px solid #c5d0f5;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 8px 0;
+      font-size: 13px;
+      color: #1a1a5e;
+    }
+    .prompt-example code {
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .summary-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .summary-card .number {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f3460;
+    }
+    .summary-card .label {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      padding: 32px 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">RELEASE NOTE</div>
+  <h1>PKM Agent — 2026-04-29 업데이트</h1>
+  <p>연결고리 탐색 · 중복 탐지 · 자동 인덱싱 기능 추가</p>
+  <div class="meta">
+    <span>작성자: 5SAMIL</span>
+    <span>브랜치: real-Gaeun</span>
+    <span>커밋: 440da37</span>
+    <span>날짜: 2026-04-29</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- 변경 요약 -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="number">2</div>
+      <div class="label">신규 파일</div>
+    </div>
+    <div class="summary-card">
+      <div class="number">4</div>
+      <div class="label">신규 Tool</div>
+    </div>
+    <div class="summary-card">
+      <div class="number">3</div>
+      <div class="label">수정 파일</div>
+    </div>
+    <div class="summary-card">
+      <div class="number">24</div>
+      <div class="label">단위 테스트</div>
+    </div>
+    <div class="summary-card">
+      <div class="number">1</div>
+      <div class="label">버그 수정</div>
+    </div>
+  </div>
+
+  <!-- 목차 -->
+  <div class="toc">
+    <h2>목차</h2>
+    <ol>
+      <li><a href="#indexing">자동 인덱싱 Tool 추가 — index_tool.py</a></li>
+      <li><a href="#duplicate">중복 탐지 Tool 추가 — duplicate_tool.py</a></li>
+      <li><a href="#graph">Agent 행동 지침 수정 — agent/graph.py</a></li>
+      <li><a href="#main">출력 방식 수정 — main.py</a></li>
+      <li><a href="#bugfix">버그 수정 — organizer_tool.py</a></li>
+      <li><a href="#tests">단위 테스트 추가 — tests/</a></li>
+      <li><a href="#env">환경 설정 — .env</a></li>
+      <li><a href="#prompts">사용 예시 프롬프트</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. index_tool.py -->
+  <div class="section" id="indexing">
+    <div class="section-header">
+      <div class="icon icon-new">📥</div>
+      <h2>자동 인덱싱 Tool 추가</h2>
+      <span class="file-tag tag-new">신규 파일</span>
+    </div>
+    <div class="file-path">tools/index_tool.py</div>
+
+    <p style="font-size:14px; color:#555; margin-bottom:16px;">
+      노트를 저장할 때마다 자동으로 vectorDB에 등록하기 위해 새로 만든 파일입니다.<br>
+      기존에는 저장 직후 vectorDB 등록이 제대로 되지 않아 중복 탐지·연결고리 탐색이 동작하지 않는 문제가 있었습니다.
+    </p>
+
+    <div class="tool-block">
+      <div class="tool-name">index_note</div>
+      <p>노트 제목 또는 경로를 입력하면 해당 파일을 읽어 vectorDB에 단독 등록합니다.<br>
+         노트 저장 직후 자동으로 호출됩니다.</p>
+    </div>
+
+    <div class="tool-block">
+      <div class="tool-name">index_all_notes</div>
+      <p>data/notes 폴더 아래 모든 마크다운 파일을 한 번에 vectorDB에 등록합니다.<br>
+         vectorDB가 비어있거나 전체 재구축이 필요할 때 수동으로 실행합니다.</p>
+    </div>
+
+    <ul class="changes">
+      <li>
+        <span class="dot dot-new"></span>
+        <span>노트 저장(<code>save_note</code>) → <code>index_note</code> 자동 호출로 연결</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span>파일→노트 변환(<code>file_to_note</code>) 후에도 <code>index_note</code> 자동 호출</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span>자동 정리 저장(<code>organize_and_save_note</code>) 후에도 <code>index_note</code> 자동 호출</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 2. duplicate_tool.py -->
+  <div class="section" id="duplicate">
+    <div class="section-header">
+      <div class="icon icon-new">🔍</div>
+      <h2>중복 탐지 Tool 추가</h2>
+      <span class="file-tag tag-new">신규 파일</span>
+    </div>
+    <div class="file-path">tools/duplicate_tool.py</div>
+
+    <p style="font-size:14px; color:#555; margin-bottom:16px;">
+      저장된 노트나 외부 파일이 이미 있는 문서와 겹치는지 확인하는 기능입니다.
+      vectorDB에 저장된 모든 노트와 의미적 유사도를 비교합니다.
+    </p>
+
+    <div class="tool-block">
+      <div class="tool-name">check_note_duplicates</div>
+      <p>노트 제목 또는 파일 경로를 입력하면 유사한 문서를 찾아 결과를 반환합니다.<br>
+         결과는 <code>data/duplicate_cache.json</code>에 캐싱됩니다.</p>
+    </div>
+
+    <p style="font-size:13px; font-weight:700; margin: 16px 0 8px; color:#333;">지원 파일 형식</p>
+    <table>
+      <tr>
+        <th>형식</th>
+        <th>확장자</th>
+        <th>읽기 방식</th>
+      </tr>
+      <tr><td>마크다운</td><td>.md</td><td>직접 읽기</td></tr>
+      <tr><td>텍스트</td><td>.txt</td><td>직접 읽기</td></tr>
+      <tr><td>PDF</td><td>.pdf</td><td>PyMuPDF</td></tr>
+      <tr><td>파워포인트</td><td>.pptx / .ppt</td><td>python-pptx</td></tr>
+      <tr><td>워드</td><td>.docx / .doc</td><td>python-docx</td></tr>
+    </table>
+
+    <p style="font-size:13px; font-weight:700; margin: 16px 0 8px; color:#333;">유사도 판정 기준</p>
+    <table>
+      <tr>
+        <th>유사도</th>
+        <th>판정</th>
+      </tr>
+      <tr><td>85% 이상</td><td>중복 가능성 높음</td></tr>
+      <tr><td>70% ~ 84%</td><td>유사 문서</td></tr>
+      <tr><td>70% 미만</td><td>결과에서 제외</td></tr>
+    </table>
+
+    <p style="font-size:13px; font-weight:700; margin: 16px 0 8px; color:#333;">탐지 흐름</p>
+    <div class="flow-box">노트 제목 또는 파일 경로 입력
+  ↓
+파일 텍스트 추출 (형식에 따라 처리)
+  ↓
+OpenAI 임베딩 → vectorDB 코사인 유사도 검색
+  ↓
+자기 자신 제외 → 유사도 기준으로 분류
+  ↓
+공통 키워드 추출 (상위 5개)
+  ↓
+결과 출력 + duplicate_cache.json 저장</div>
+  </div>
+
+  <!-- 3. agent/graph.py -->
+  <div class="section" id="graph">
+    <div class="section-header">
+      <div class="icon icon-mod">🧠</div>
+      <h2>Agent 행동 지침 수정</h2>
+      <span class="file-tag tag-mod">수정</span>
+    </div>
+    <div class="file-path">agent/graph.py</div>
+
+    <p style="font-size:14px; color:#555; margin-bottom:16px;">
+      Agent가 어떻게 행동할지 정의하는 시스템 프롬프트를 수정했습니다.
+    </p>
+
+    <ul class="changes">
+      <li>
+        <span class="dot dot-fix"></span>
+        <span><strong>노트 저장 흐름 수정</strong> — <code>add_to_knowledge</code> 대신 <code>index_note</code>를 호출하도록 변경.<br>
+        기존 방식은 Agent가 응답 텍스트(요약문)를 전달해서 실제 파일 내용과 달라지는 문제가 있었음.</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span><strong>C-role 저장 후 자동 인덱싱 규칙 추가</strong> — 자동 정리 저장 완료 후 <code>index_note</code> 호출 규칙 추가</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span><strong>file_to_note 흐름에 인덱싱 추가</strong> — 파일→노트 변환 후 <code>index_note</code>까지 자동 실행</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span><strong>전체 인덱싱 규칙 추가</strong> — "노트 전체 인덱싱해줘" 등의 명령어를 인식하도록 추가</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span><strong>중복 탐지 규칙 분리</strong> — 파일 기반(<code>check_note_duplicates</code>)과 텍스트 기반(<code>detect_duplicates</code>) 규칙을 명확히 구분</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 4. main.py -->
+  <div class="section" id="main">
+    <div class="section-header">
+      <div class="icon icon-mod">⚙️</div>
+      <h2>출력 방식 수정</h2>
+      <span class="file-tag tag-mod">수정</span>
+    </div>
+    <div class="file-path">main.py</div>
+
+    <p style="font-size:14px; color:#555; margin-bottom:16px;">
+      툴 결과를 AI 설명 없이 바로 출력할 항목 목록(<code>DIRECT_OUTPUT_TOOLS</code>)을 수정했습니다.
+    </p>
+
+    <ul class="changes">
+      <li>
+        <span class="dot dot-new"></span>
+        <span><code>index_note</code>, <code>index_all_notes</code> 두 Tool을 직접 출력 목록에 추가</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span>인덱싱 완료 메시지가 AI 재해석 없이 "인덱싱 완료: ..." 형태로 바로 출력됨</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 5. 버그 수정 -->
+  <div class="section" id="bugfix">
+    <div class="section-header">
+      <div class="icon icon-fix">🐛</div>
+      <h2>버그 수정</h2>
+      <span class="file-tag tag-fix">버그 수정</span>
+    </div>
+    <div class="file-path">tools/organizer_tool.py</div>
+
+    <ul class="changes">
+      <li>
+        <span class="dot dot-fix"></span>
+        <span><strong>Python 3.9 문법 호환 오류 수정</strong><br>
+        <code>datetime | None</code> 문법은 Python 3.10부터 지원됨.<br>
+        현재 환경(3.9)에서 실행 시 전체 툴 체인 임포트 실패로 이어지는 치명적 버그였음.<br>
+        → <code>Optional[datetime]</code> 방식으로 교체</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 6. 테스트 -->
+  <div class="section" id="tests">
+    <div class="section-header">
+      <div class="icon icon-test">🧪</div>
+      <h2>단위 테스트 추가</h2>
+      <span class="file-tag tag-test">신규 파일</span>
+    </div>
+    <div class="file-path">tests/test_duplicate_and_index_tools.py</div>
+
+    <p style="font-size:14px; color:#555; margin-bottom:16px;">
+      신규 Tool의 동작을 검증하는 자동화 테스트입니다. 외부 API 호출 없이 실행됩니다.
+    </p>
+
+    <table>
+      <tr>
+        <th>테스트 그룹</th>
+        <th>케이스 수</th>
+        <th>검증 내용</th>
+      </tr>
+      <tr>
+        <td>IndexAllNotesTests</td>
+        <td>6개</td>
+        <td>전체 인덱싱 — 파일 수, 비MD 제외, 빈 폴더, 중첩 폴더 등</td>
+      </tr>
+      <tr>
+        <td>CheckNoteDuplicatesTests</td>
+        <td>12개</td>
+        <td>중복 판정, 자기 자신 제외, 임계값 필터, 캐싱, 오류 처리 등</td>
+      </tr>
+      <tr>
+        <td>TopKeywordsTests</td>
+        <td>4개</td>
+        <td>키워드 추출 — 빈도 순, 불용어 제거, 개수 제한</td>
+      </tr>
+      <tr>
+        <td>ToolRegistrationTests</td>
+        <td>2개</td>
+        <td>Tool이 Agent에 정상 등록되는지 확인</td>
+      </tr>
+    </table>
+
+    <p style="font-size:13px; color:#888; margin-top:12px;">
+      실행 명령어: <code style="background:#f4f6f9; padding:2px 8px; border-radius:4px;">python -m pytest tests/test_duplicate_and_index_tools.py -v</code>
+    </p>
+  </div>
+
+  <!-- 7. .env -->
+  <div class="section" id="env">
+    <div class="section-header">
+      <div class="icon icon-config">🔧</div>
+      <h2>환경 설정</h2>
+      <span class="file-tag tag-config">설정</span>
+    </div>
+    <div class="file-path">.env</div>
+
+    <ul class="changes">
+      <li>
+        <span class="dot dot-new"></span>
+        <span><code>PKM_NOTES_DIR</code> 환경 변수 추가 — 노트 기본 경로를 절대경로로 고정</span>
+      </li>
+      <li>
+        <span class="dot dot-new"></span>
+        <span>이 변수는 organizer_tool, duplicate_tool, index_tool에서 공통으로 참조함</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- 8. 사용 예시 -->
+  <div class="section" id="prompts">
+    <div class="section-header">
+      <div class="icon icon-new">💬</div>
+      <h2>사용 예시 프롬프트</h2>
+    </div>
+
+    <p style="font-size:13px; font-weight:700; color:#333; margin-bottom:10px;">전체 인덱싱 (처음 실행하거나 vectorDB 재구축 시)</p>
+    <div class="prompt-example"><code>노트 전체 인덱싱해줘</code></div>
+
+    <p style="font-size:13px; font-weight:700; color:#333; margin: 16px 0 10px;">연결고리 탐색</p>
+    <div class="prompt-example"><code>머신러닝과 연결된 지식 찾아줘</code></div>
+    <div class="prompt-example"><code>딥러닝 관련 노트 연결고리 탐색해줘</code></div>
+
+    <p style="font-size:13px; font-weight:700; color:#333; margin: 16px 0 10px;">중복 탐지 — 노트 제목 또는 파일 경로</p>
+    <div class="prompt-example"><code>딥러닝기초 중복 있어?</code></div>
+    <div class="prompt-example"><code>강의교안_01_-_인공지능_개요 비슷한 문서 찾아줘</code></div>
+    <div class="prompt-example"><code>data/수업자료/딥러닝_기초.pdf 중복 확인해줘</code></div>
+
+    <p style="font-size:13px; font-weight:700; color:#333; margin: 16px 0 10px;">중복 탐지 — 직접 텍스트 입력</p>
+    <div class="prompt-example"><code>다음 내용 중복인지 확인해줘: 머신러닝은 데이터를 기반으로 패턴을 학습하는 인공지능의 한 분야입니다.</code></div>
+  </div>
+
+</div>
+
+<footer>
+  PKM Agent · 고려대학교 · 2026-04-29
+</footer>
+
+</body>
+</html>

@@ -1,45 +1,45 @@
 {
   "data/notes/강의교안_01_-_인공지능_개요.md": {
-    "checked_at": "2026-04-29 13:22",
-    "char_count": 5992,
+    "checked_at": "2026-04-29 13:48",
+    "char_count": 29037,
     "results": [
       {
         "rank": 1,
-        "source": "data/notes/강의교안_01_-_인공지능_개요 복사본 2.md",
-        "similarity": 100.0,
+        "source": "data/notes/강의교안_01_-_인공지능_개요111.md",
+        "similarity": 98.6,
         "judgment": "중복 가능성 높음",
         "keywords": [
           "이미지",
           "korea",
           "university",
-          "인공지능",
-          "ai"
+          "attention",
+          "모델"
         ]
       },
       {
         "rank": 2,
-        "source": "data/notes/강의교안_01_-_인공지능_개요 복사본 2.md",
-        "similarity": 100.0,
+        "source": "data/notes/딥러닝기초.md",
+        "similarity": 98.4,
         "judgment": "중복 가능성 높음",
         "keywords": [
           "이미지",
           "korea",
           "university",
-          "인공지능",
-          "ai"
+          "attention",
+          "모델"
         ]
       },
       {
         "rank": 3,
-        "source": "data/notes/강의교안_01_-_인공지능_개요 복사본 2.md",
-        "similarity": 100.0,
+        "source": "data/notes/딥러닝기초.md",
+        "similarity": 98.4,
         "judgment": "중복 가능성 높음",
         "keywords": [
           "이미지",
           "korea",
           "university",
-          "인공지능",
-          "ai"
+          "attention",
+          "모델"
         ]
       }
     ]

@@ -1,4 +1,5 @@
 """노트 이동/이름변경/메타데이터 편집용 유틸리티"""
+import difflib
 import os
 import re
 import unicodedata
@@ -200,7 +201,35 @@ def resolve_note_reference_path(note_reference: str) -> str:
                 matches.append((score, relative_path.count("/"), relative_path, absolute_path))
 
     if not matches:
-        raise FileNotFoundError(f"노트를 찾을 수 없습니다: {raw_reference}")
+        query_key = _title_key(os.path.splitext(os.path.basename(raw_reference))[0])
+        fuzzy_candidates = []
+
+        for root, _, files in os.walk(note_root_dir()):
+            for name in sorted(files):
+                if not name.endswith(".md"):
+                    continue
+                absolute_path = os.path.join(root, name)
+                relative_path = note_relative_path(absolute_path).replace("\\", "/")
+                stem_key = _title_key(os.path.splitext(name)[0])
+                title, _, _ = parse_note_file(absolute_path)
+                title_key = _title_key(title)
+
+                if query_key in stem_key or query_key in title_key:
+                    ratio = 1.0
+                else:
+                    ratio = max(
+                        difflib.SequenceMatcher(None, query_key, stem_key).ratio(),
+                        difflib.SequenceMatcher(None, query_key, title_key).ratio(),
+                    )
+
+                if ratio >= 0.4:
+                    fuzzy_candidates.append((ratio, len(stem_key), relative_path.count("/"), relative_path, absolute_path))
+
+        if not fuzzy_candidates:
+            raise FileNotFoundError(f"노트를 찾을 수 없습니다: {raw_reference}")
+
+        fuzzy_candidates.sort(key=lambda c: (-c[0], c[1], c[2], c[3]))
+        return fuzzy_candidates[0][4]
 
     matches.sort(key=lambda item: (item[0], item[1], item[2]))
     best_score = matches[0][0]
