@@ -53,6 +53,15 @@ def _sanitize_path_component(value: str) -> str:
     normalized = re.sub(r"_+", "_", normalized).strip("._")
     return normalized or "untitled"
 
+def _build_basename(title: str) -> str:
+    stem = unicodedata.normalize("NFKC", title).strip()
+    stem = stem.replace("_", " ").strip()
+    if " - " in stem:
+        parts = stem.split(" - ", 1)
+        prefix = parts[0].replace(" ", "")
+        suffix = parts[1].replace(" ", "")
+        return f"{prefix} - {suffix}"
+    return stem.replace(" ", "")
 
 def _note_lookup_key(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value or "")
@@ -103,7 +112,8 @@ def _target_relative_path(
     current_time = now or datetime.now()
     category = _classify_document(title, content, source_type)
     month_folder = current_time.strftime("%Y-%m")
-    filename = f"{_sanitize_path_component(title)}.md"
+    date_str = current_time.strftime("%Y%m%d")
+    filename = f"[{date_str}] {_build_basename(title)}.md"
     relative_path = os.path.join(category, month_folder, filename)
     return category, relative_path
 

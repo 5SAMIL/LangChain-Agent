@@ -40,6 +40,9 @@ STOPWORDS = {
     "be", "we", "you", "your", "our", "their", "it", "its",
     "이번", "다음", "해당", "관련", "통해", "위해", "및", "등", "또는",
     "그리고", "하지만", "또한", "에서", "으로", "하는", "하기", "대한",
+    # PPT 템플릿 노이즈
+    "korea", "university", "college", "department", "professor", "copyright",
+    "all", "rights", "reserved", "www", "com", "co", "kr",
 }
 
 DEFAULT_TAXONOMY = {"tag_rules": {}, "categories": [], "stopwords": []}
@@ -51,6 +54,7 @@ def _normalize(text: str) -> str:
     if not text:
         return ""
     text = text.replace("\x00", " ").replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\(이미지\)", "", text)
     lines = [re.sub(r"[ \t]+", " ", ln).strip() for ln in text.split("\n")]
     return "\n".join(ln for ln in lines if ln).strip()
 
