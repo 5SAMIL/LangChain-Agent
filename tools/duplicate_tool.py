@@ -63,6 +63,11 @@ def _save_cache(cache: dict) -> None:
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
 
+def _l2_to_cosine(l2_distance: float) -> float:
+    """L2 거리 → 코사인 유사도 변환 (OpenAI 단위 벡터 기준: cosine_sim = 1 - L2²/2)"""
+    return max(0.0, 1 - (l2_distance ** 2) / 2)
+
+
 def _run_similarity_search(source_path: str, content: str) -> list:
     vectorstore = _get_vectorstore()
     results = vectorstore.similarity_search_with_score(content, k=TOP_K + 2)
@@ -70,7 +75,7 @@ def _run_similarity_search(source_path: str, content: str) -> list:
     source_filename = os.path.basename(source_path)
     entries = []
     for doc, score in results:
-        similarity = round(1 - score, 4)
+        similarity = round(_l2_to_cosine(score), 4)
         doc_source = doc.metadata.get("source", "unknown")
 
         if source_filename in doc_source or source_path in doc_source:

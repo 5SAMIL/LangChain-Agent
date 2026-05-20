@@ -74,7 +74,7 @@ MAX_PREVIEW_CHARS = 2000
 SUPPORTED_EXTENSIONS = {
     # 문서
     ".pdf", ".txt", ".md",
-    ".ppt", ".pptx",
+    ".pptx",  # .ppt(구버전) 제외 — python-pptx 미지원
     ".doc", ".docx",
     # 이미지
     ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp",
@@ -264,6 +264,8 @@ def _read_content(file_path: str) -> str:
         return text or "PDF에서 텍스트를 추출할 수 없습니다."
 
     if ext in {".ppt", ".pptx"}:
+        if ext == ".ppt":
+            return "지원하지 않는 형식입니다: 구버전 .ppt(PowerPoint 97-2003)는 읽을 수 없습니다. .pptx로 변환 후 사용하세요."
         from pptx import Presentation
         prs = Presentation(file_path)
         sections = []
@@ -757,3 +759,81 @@ def delete_folder(folder_path: str) -> str:
 
     shutil.rmtree(folder_path)
     return f"폴더 삭제 완료: {folder_path}"
+
+
+@tool
+def search_in_files(keyword: str, directory: str = "", file_types: str = "all") -> str:
+    """파일 내용에서 키워드를 직접 검색한다. vectorDB 인덱싱 없이 실제 파일을 읽어 텍스트를 탐색한다.
+    keyword: 검색할 텍스트 (대소문자 구분 없음)
+    directory: 검색할 폴더 경로 (기본값: data/notes 전체)
+    file_types: 'text'(md/txt만), 'doc'(pdf/pptx/ppt/docx/doc), 'all'(전체, 기본값)
+    """
+    TEXT_EXTS = {".md", ".txt"}
+    DOC_EXTS = {".pdf", ".pptx", ".ppt", ".docx", ".doc"}
+
+    search_dir = directory.strip() if directory.strip() else NOTES_DIR
+    if not os.path.isdir(search_dir):
+        return f"폴더를 찾을 수 없습니다: {search_dir}"
+
+    if file_types == "text":
+        target_exts = TEXT_EXTS
+    elif file_types == "doc":
+        target_exts = DOC_EXTS
+    else:
+        target_exts = TEXT_EXTS | DOC_EXTS
+
+    keyword_lower = keyword.lower()
+    matches = []
+    errors = []
+
+    for root, _, files in os.walk(search_dir):
+        for name in sorted(files):
+            if name.startswith("~$"):
+                continue
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in target_exts:
+                continue
+
+            filepath = os.path.join(root, name)
+            try:
+                if ext in TEXT_EXTS:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        content = f.read()
+                else:
+                    content = _read_content(filepath)
+
+                if keyword_lower not in content.lower():
+                    continue
+
+                lines = content.split("\n")
+                matched_lines = []
+                total_count = 0
+                for i, line in enumerate(lines):
+                    if keyword_lower in line.lower():
+                        total_count += 1
+                        if len(matched_lines) < 3:
+                            matched_lines.append(f"  줄 {i + 1}: {line.strip()[:120]}")
+
+                rel_path = os.path.relpath(filepath, PROJECT_ROOT)
+                matches.append({"path": rel_path, "lines": matched_lines, "count": total_count})
+
+            except Exception as e:
+                errors.append(f"{name}: {e}")
+
+    if not matches:
+        result = f"'{keyword}' 검색 결과 없음."
+        if errors:
+            result += f"\n오류 {len(errors)}건: " + ", ".join(errors[:3])
+        return result
+
+    out = [f"'{keyword}' 검색 결과: {len(matches)}개 파일에서 발견"]
+    for m in matches:
+        out.append(f"\n📄 {m['path']} ({m['count']}개 매칭)")
+        out.extend(m["lines"])
+        if m["count"] > 3:
+            out.append(f"  ... 외 {m['count'] - 3}개 더")
+
+    if errors:
+        out.append(f"\n오류 {len(errors)}건: " + ", ".join(errors[:3]))
+
+    return "\n".join(out)

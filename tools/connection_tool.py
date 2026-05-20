@@ -9,6 +9,11 @@ NOTES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "no
 DUPLICATE_THRESHOLD = 0.95  # 유사도 이 이상이면 중복으로 판단
 
 
+def _l2_to_cosine(l2_distance: float) -> float:
+    """L2 거리 → 코사인 유사도 변환 (OpenAI 단위 벡터 기준: cosine_sim = 1 - L2²/2)"""
+    return max(0.0, 1 - (l2_distance ** 2) / 2)
+
+
 def _get_vectorstore() -> Chroma:
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
     return Chroma(persist_directory=VECTORDB_DIR, embedding_function=embeddings)
@@ -26,7 +31,7 @@ def find_connections(topic: str, k: int = 5) -> str:
 
         output = [f"'{topic}'과 연결된 지식:"]
         for i, (doc, score) in enumerate(results, 1):
-            similarity = round((1 - score) * 100, 1)
+            similarity = round(_l2_to_cosine(score) * 100, 1)
             source = doc.metadata.get("source", "unknown")
             preview = doc.page_content[:100].replace("\n", " ")
             output.append(f"[{i}] 유사도 {similarity}% (출처: {source})\n    {preview}...")
@@ -50,13 +55,14 @@ def detect_duplicates(content: str) -> str:
         similar = []
 
         for doc, score in results:
-            similarity = round((1 - score) * 100, 1)
+            cosine_sim = _l2_to_cosine(score)
+            similarity = round(cosine_sim * 100, 1)
             source = doc.metadata.get("source", "unknown")
             preview = doc.page_content[:80].replace("\n", " ")
 
-            if (1 - score) >= DUPLICATE_THRESHOLD:
+            if cosine_sim >= DUPLICATE_THRESHOLD:
                 duplicates.append(f"  - [{similarity}%] (출처: {source}) {preview}...")
-            elif (1 - score) >= 0.7:
+            elif cosine_sim >= 0.7:
                 similar.append(f"  - [{similarity}%] (출처: {source}) {preview}...")
 
         output = []

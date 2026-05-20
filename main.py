@@ -3,6 +3,7 @@ import sys
 import threading
 import itertools
 import time
+import uuid
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
@@ -100,7 +101,7 @@ DIRECT_OUTPUT_TOOLS = {
 }
 
 
-def chat(graph, user_input: str) -> str:
+def chat(graph, user_input: str, thread_id: str) -> str:
     stop_event = threading.Event()
     status = {"step": "생각 중", "detail": ""}
     result_holder = {}
@@ -116,7 +117,7 @@ def chat(graph, user_input: str) -> str:
 
             for chunk, metadata in graph.stream(
                 {"messages": [HumanMessage(content=user_input)]},
-                config={"recursion_limit": 50},
+                config={"configurable": {"thread_id": thread_id}, "recursion_limit": 50},
                 stream_mode="messages",
             ):
                 # Tool 호출 청크
@@ -203,6 +204,7 @@ def chat(graph, user_input: str) -> str:
 def main():
     print("PKM Agent 시작 (종료: 'quit' / 중단: Ctrl+C)")
     graph = build_graph(model="gpt-4o-mini")
+    thread_id = str(uuid.uuid4())
 
     while True:
         try:
@@ -217,7 +219,7 @@ def main():
             continue
 
         try:
-            response = chat(graph, user_input)
+            response = chat(graph, user_input, thread_id)
             if response is None:
                 print("\n[Agent 중단됨] 새 질문을 입력하세요.")
                 continue

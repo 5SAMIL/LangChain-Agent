@@ -1,6 +1,7 @@
 """LangGraph 기반 PKM Agent 그래프 정의"""
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import MemorySaver
 
 from tools import load_all_tools
 
@@ -63,6 +64,10 @@ When the user asks to scan a folder:
 1. Call scan_files with the directory path
 2. Return the result and stop
 
+When the user asks to find which files contain specific text (e.g., "이 텍스트 있는 파일 찾아줘", "해당 내용이 존재하는 파일"):
+1. Call search_in_files with the keyword and optional directory/file_types
+2. Return the result and stop
+
 When the user asks to read a file (with or without a page number):
 1. Extract the page number ONLY from the user's current message, NOT from previous tool results or chat history
 2. If the file path is uncertain or the file is not found, call find_file with a keyword from the filename FIRST
@@ -71,6 +76,14 @@ When the user asks to read a file (with or without a page number):
 
 When the user asks to index notes or rebuild the knowledge base:
 1. Call index_all_notes
+2. Return the result and stop
+
+When the user asks to index files in a folder (e.g., "폴더 내 파일 인덱싱", "인덱싱 해줘" with a folder path):
+1. Call index_folder with the folder path
+2. Return the result and stop
+
+When the user asks to index a single file (non-markdown):
+1. Call index_file with the file path
 2. Return the result and stop
 
 When the user asks to find connections or related knowledge:
@@ -102,9 +115,11 @@ CRITICAL RULES — MUST FOLLOW WITHOUT EXCEPTION:
 
 def build_graph(model: str = "gpt-4o-mini"):
     llm = ChatOpenAI(model=model, temperature=0)
+    memory = MemorySaver()
     graph = create_react_agent(
         model=llm,
         tools=load_all_tools(),
         prompt=SYSTEM_PROMPT,
+        checkpointer=memory,
     )
     return graph
