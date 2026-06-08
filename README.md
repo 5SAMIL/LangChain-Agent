@@ -3,6 +3,8 @@
 LangChain · LangGraph 기반 **개인 지식 관리(Personal Knowledge Management) Agent**입니다.
 노트 저장부터 문서 읽기(PDF/이미지/Office), AI 분석(요약·키워드·태그·분류), 벡터 검색, 자동 분류·정리까지 하나의 대화형 에이전트로 처리합니다.
 
+> 📄 발표 코멘트 · 코드 리뷰 가이드 · 구현 정리를 한 곳에 모은 통합 문서: [`PKM_Agent.html`](PKM_Agent.html)
+
 ## 주요 기능
 
 - **노트 관리** — 마크다운 노트 저장/조회/목록 (`data/notes/`)
@@ -28,9 +30,18 @@ data/
 tests/                  pytest 테스트
 ```
 
-- **LLM**: OpenAI `gpt-4o-mini` (temperature=0)
+- **LLM**: OpenAI `gpt-4o-mini` (temperature=0), 임베딩 `text-embedding-3-small`
 - **에이전트**: LangGraph `create_react_agent` (ReAct 패턴) + `MemorySaver` 체크포인터로 대화 맥락 유지
-- **툴 로딩**: `tools/load_all_tools()`가 `tools/` 패키지 내 모든 `BaseTool` 인스턴스를 자동 수집
+- **툴 로딩**: `tools/load_all_tools()`가 `tools/` 패키지 내 모든 `BaseTool` 인스턴스를 자동 수집 (현재 43개 툴)
+- **직접 출력**: 읽기·조회 성격의 툴은 `DIRECT_OUTPUT_TOOLS`로 지정해 LLM 가공 없이 결과를 그대로 출력
+
+## 팀 구성 및 담당 영역
+
+| 담당 | 영역 | 주요 구현 |
+| --- | --- | --- |
+| 박가은 | 파일 처리 · 연결 탐색 | LangChain 환경 구축, Agent 안정화, 파일 읽기/스캔, 벡터DB, 중복·연결 탐지 |
+| 김보민 | 문서 분석 · AI 처리 | 요약, 키워드, 태그, 자동 분류, 정리 제안 (A-role) |
+| 이해원 | 정리 실행 · 사용자 상호작용 | 이동·이름 변경·폴더 생성, 미리보기·승인, 메타데이터 수정, 배치 재정리 (C-role) |
 
 ## 설치
 
